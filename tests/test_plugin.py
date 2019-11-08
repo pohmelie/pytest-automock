@@ -7,7 +7,7 @@ class DummyException(Exception):
     pass
 
 
-def test_automock_sync(automock, tmp_path):
+def test_automock_sync(tmp_path_automock):
     class Namespace:
         class T:
             def get(self):
@@ -16,16 +16,16 @@ def test_automock_sync(automock, tmp_path):
             def exception(self):
                 raise DummyException()
 
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=False):
+    with tmp_path_automock((Namespace, "T"), unlocked=False):
         with pytest.raises(RuntimeError):
             Namespace.T().get()
 
     with pytest.raises(RuntimeError):
-        with automock((Namespace, "T"), (Namespace, "T"), storage=tmp_path, unlocked=False):
+        with tmp_path_automock((Namespace, "T"), (Namespace, "T"), unlocked=False):
             pass
 
     a = []
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=True) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=True) as mocks:
         t = Namespace.T()
         a.append(t.get())
         a.append(t.get())
@@ -35,7 +35,7 @@ def test_automock_sync(automock, tmp_path):
         assert len(mock.mem) == 4
 
     b = []
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=True) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=True) as mocks:
         t = Namespace.T()
         b.append(t.get())
         b.append(t.get())
@@ -44,7 +44,7 @@ def test_automock_sync(automock, tmp_path):
         mock, *_ = mocks.values()
         assert len(mock.mem) == 4
 
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=False) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=False) as mocks:
         t = Namespace.T()
         with pytest.raises(RuntimeError):
             t.unknown()
@@ -53,7 +53,7 @@ def test_automock_sync(automock, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_automock_async(automock, tmp_path):
+async def test_automock_async(tmp_path_automock):
     class Namespace:
         class T:
             async def get(self):
@@ -62,12 +62,12 @@ async def test_automock_async(automock, tmp_path):
             async def exception(self):
                 raise DummyException()
 
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=False):
+    with tmp_path_automock((Namespace, "T"), unlocked=False):
         with pytest.raises(RuntimeError):
             await Namespace.T().get()
 
     a = []
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=True) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=True) as mocks:
         t = Namespace.T()
         a.append(await t.get())
         a.append(await t.get())
@@ -77,7 +77,7 @@ async def test_automock_async(automock, tmp_path):
         assert len(mock.mem) == 4
 
     b = []
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=True) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=False) as mocks:
         t = Namespace.T()
         b.append(await t.get())
         b.append(await t.get())
@@ -90,7 +90,7 @@ async def test_automock_async(automock, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_automock_coroutine(automock, tmp_path):
+async def test_automock_coroutine(tmp_path_automock):
     class Namespace:
         class T:
             def get(self):
@@ -99,7 +99,7 @@ async def test_automock_coroutine(automock, tmp_path):
                 return foo()
 
     a = []
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=True) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=True) as mocks:
         t = Namespace.T()
         a.append(await t.get())
         a.append(await t.get())
@@ -107,11 +107,33 @@ async def test_automock_coroutine(automock, tmp_path):
         assert len(mock.mem) == 3
 
     b = []
-    with automock((Namespace, "T"), storage=tmp_path, unlocked=True) as mocks:
+    with tmp_path_automock((Namespace, "T"), unlocked=False) as mocks:
         t = Namespace.T()
         b.append(await t.get())
         b.append(await t.get())
         mock, *_ = mocks.values()
         assert len(mock.mem) == 3
+
+    assert a == b
+
+
+def test_plain_function(tmp_path_automock):
+    def f():
+        return time.perf_counter()
+
+    class Namespace:
+        method = f
+
+    with tmp_path_automock((Namespace, "method"), unlocked=True) as mocks:
+        mock, *_ = mocks.values()
+        assert len(mock.mem) == 1
+        a = Namespace.method()
+        assert len(mock.mem) == 2
+
+    with tmp_path_automock((Namespace, "method"), unlocked=False) as mocks:
+        mock, *_ = mocks.values()
+        assert len(mock.mem) == 2
+        b = Namespace.method()
+        assert len(mock.mem) == 2
 
     assert a == b

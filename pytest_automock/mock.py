@@ -4,12 +4,12 @@ import inspect
 from enum import Enum
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Optional, Type, Dict
+from typing import Any, Optional, Dict
 
 
 class ObjectMock:
 
-    def __init__(self, factory: Type, *, mem: Optional[Dict] = None, locked: bool = True):
+    def __init__(self, factory, *, mem: Optional[Dict] = None, locked: bool = True):
         self.factory = factory
         self.mem = mem or {}
         self.locked = locked
@@ -19,7 +19,7 @@ class ObjectMock:
         return pickle.dumps(self.mem)
 
     @classmethod
-    def from_bytes(cls, factory: Type, *, binary: Optional[bytes] = None, locked: bool = True):
+    def from_bytes(cls, factory, *, binary: Optional[bytes] = None, locked: bool = True):
         mem = None
         if binary is not None:
             mem = pickle.loads(binary)
@@ -27,7 +27,19 @@ class ObjectMock:
 
     @property
     def proxy(self):
+        if inspect.isfunction(self.factory):
+            factory = partial(_FunctionAsClass, self.factory)
+            return _Proxy(self.mem, self.counter, factory, self.locked)
         return partial(_Proxy, self.mem, self.counter, self.factory, self.locked)
+
+
+class _FunctionAsClass:
+
+    def __init__(self, f):
+        self._f = f
+
+    def __call__(self, *args, **kwargs):
+        return self._f(*args, **kwargs)
 
 
 class _ResultType(Enum):
@@ -125,3 +137,6 @@ class _Proxy:
     def __getattr__(self, name):
         index = next(self.__counter)
         return self.__resolve_method(index, name)
+
+    def __call__(self, *args, **kwargs):
+        return self.__getattr__("__call__")(*args, **kwargs)
