@@ -75,11 +75,11 @@ test_t.py .
 #### Pros
 * Easy to use
 * Speed up tests
-* Can mock any object
+* Mock any object
+* Mock functions
 #### Cons
 * No support for dunder methods (can be partly solved)
 * No support for sync/async generators/contexts
-* No plain functions support (can be solved)
 * No black and white lists of methods for mocking (can be solved)
 * Races will break tests, since order counts
 
