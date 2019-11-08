@@ -3,6 +3,7 @@
 ![Codecov coverage for master branch](https://codecov.io/gh/pohmelie/pytest-automock/branch/master/graph/badge.svg)
 ![Pypi version](https://img.shields.io/pypi/v/pytest-automock.svg)
 ![Pypi downloads count](https://img.shields.io/pypi/dm/pytest-automock)
+
 Automock fixtures for pytest.
 
 ### `automock`
