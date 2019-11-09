@@ -76,7 +76,7 @@ E           RuntimeError: Mock is locked, but '__init__' wanted
 not allowed in this mode. So, above error says that we can't call `__init__` of our `Network`.
 In locked mode there is no mock-files update also.
 
-To allow real calls and mocks generation `automock` provides extra cli argument to `pytest` — `--automock-unlocked`
+To allow real calls and mocks generation `automock` provides extra cli argument to `pytest`: `--automock-unlocked`
 ``` bash
 $ pytest -x --automock-unlocked
 ...
@@ -132,7 +132,7 @@ def automock(factory: Callable, *,
 * `memory`: dicrionary to get/put mocks
 * `locked`: mode selector
 * `allowed_methods`: sequence of **allowed to mock** attributes
-* `forbidden_methods`: sequnce of **forbidden to moc** attributes
+* `forbidden_methods`: sequnce of **forbidden to mock** attributes
 
 # Development
 ## Run tests
