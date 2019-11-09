@@ -1,9 +1,11 @@
 import contextlib
+import pickle
 from pathlib import Path
+from typing import Union, Optional, Sequence, Callable, Any
 
 import pytest
 
-from .mock import ObjectMock
+from .mock import automock as automock_implementation
 
 
 def pytest_addoption(parser):
@@ -19,26 +21,40 @@ def automock_unlocked(request):
 @pytest.fixture
 def automock(request, monkeypatch, automock_unlocked):
     @contextlib.contextmanager
-    def automocker(*pairs, storage="tests/mocks", unlocked=None):
+    def automocker(*pairs,
+                   storage: Union[str, Path] = "tests/mocks",
+                   override_name: Optional[str] = None,
+                   unlocked: Optional[bool] = None,
+                   allowed_methods: Optional[Sequence[str]] = None,
+                   forbidden_methods: Optional[Sequence[str]] = None,
+                   encode: Callable[[Any], bytes] = pickle.dumps,
+                   decode: Callable[[bytes], Any] = pickle.loads):
         if unlocked is None:
             unlocked = automock_unlocked
         with monkeypatch.context() as m:
-            mocks = {}
+            memories = {}
             for obj, name in pairs:
-                p = Path(storage).joinpath(request.node.name, obj.__name__, name)
-                binary = None
-                if p.exists():
-                    binary = p.read_bytes()
-                original = getattr(obj, name)
-                mock = ObjectMock.from_bytes(original, binary=binary, locked=not unlocked)
-                m.setattr(obj, name, mock.proxy)
-                if p in mocks:
+                filename = override_name or name
+                p = Path(storage).joinpath(request.node.name, obj.__name__, filename)
+                if p in memories:
                     raise RuntimeError(f"Mock with path {p} already exist")
-                mocks[p] = mock
-            yield mocks
+                memory = {}
+                if p.exists():
+                    memory = decode(p.read_bytes())
+                original = getattr(obj, name)
+                mocked = automock_implementation(
+                    original,
+                    memory=memory,
+                    locked=not unlocked,
+                    allowed_methods=allowed_methods,
+                    forbidden_methods=forbidden_methods,
+                )
+                m.setattr(obj, name, mocked)
+                memories[p] = memory
+            yield memories
             if unlocked:
-                for p, mock in mocks.items():
+                for p, memory in memories.items():
                     p.parent.mkdir(parents=True, exist_ok=True)
-                    p.write_bytes(mock.as_bytes())
+                    p.write_bytes(encode(memory))
 
     return automocker
