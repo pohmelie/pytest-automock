@@ -165,4 +165,4 @@ async def test_exception():
 def test_lock():
     m = {}
     with pytest.raises(RuntimeError):
-        t = automock(T, memory=m, locked=True)(1)
+        automock(T, memory=m, locked=True)(1)
