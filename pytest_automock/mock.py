@@ -1,7 +1,6 @@
 import itertools
 import inspect
 from enum import Enum
-from dataclasses import dataclass
 from functools import partial
 from typing import Any, Dict, Callable, Optional, Sequence
 
@@ -41,11 +40,12 @@ class _ResultType(Enum):
     async_ = "async"
 
 
-@dataclass
 class _Result:
-    value: Any
-    type: _ResultType
-    is_exception: bool = False
+
+    def __init__(self, value: Any, type: _ResultType, is_exception: bool = False):
+        self.value = value
+        self.type = type
+        self.is_exception = is_exception
 
 
 class _Proxy:
