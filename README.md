@@ -24,7 +24,7 @@
 `pytest-automock` is offered under MIT license.
 
 # Requirements
-* python 3.7+
+* python 3.6+
 
 # Usage
 Lets say you have some module `mymod.py`:
