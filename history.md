@@ -1,3 +1,7 @@
+# 0.4.0 (2019-12-02)
+* remove allowed/forbidden lists since complexity
+* add result serialization to prevent mutations
+
 # 0.3.0 (2019-11-12)
 * add python 3.6 support
 

@@ -1,7 +1,7 @@
 import contextlib
 import pickle
 from pathlib import Path
-from typing import Union, Optional, Sequence, Callable, Any
+from typing import Union, Optional, Callable, Any
 
 import pytest
 
@@ -25,8 +25,6 @@ def automock(request, monkeypatch, automock_unlocked):
                    storage: Union[str, Path] = "tests/mocks",
                    override_name: Optional[str] = None,
                    unlocked: Optional[bool] = None,
-                   allowed_methods: Optional[Sequence[str]] = None,
-                   forbidden_methods: Optional[Sequence[str]] = None,
                    encode: Callable[[Any], bytes] = pickle.dumps,
                    decode: Callable[[bytes], Any] = pickle.loads):
         if unlocked is None:
@@ -46,8 +44,6 @@ def automock(request, monkeypatch, automock_unlocked):
                     original,
                     memory=memory,
                     locked=not unlocked,
-                    allowed_methods=allowed_methods,
-                    forbidden_methods=forbidden_methods,
                 )
                 m.setattr(obj, name, mocked)
                 memories[p] = memory

@@ -12,7 +12,6 @@
 * Autogenerate/autouse mocks for functions and objects
 * Sync and async support
 * Locked mode to be sure mocked objects stay untouched
-* Black and white lists for attributes
 * Customizable serialization
 
 # Limitaions
@@ -102,8 +101,6 @@ def automock(*pairs,
              storage: Union[str, Path] = "tests/mocks",
              override_name: Optional[str] = None,
              unlocked: Optional[bool] = None,
-             allowed_methods: Optional[Sequence[str]] = None,
-             forbidden_methods: Optional[Sequence[str]] = None,
              encode: Callable[[Any], bytes] = pickle.dumps,
              decode: Callable[[bytes], Any] = pickle.loads)
 ```
@@ -111,8 +108,6 @@ def automock(*pairs,
 * `storage`: root path for storing mocks
 * `override_name`: forced mock-file name
 * `unlocked`: mode selector (if omited, selected by `--automock-unlocked`)
-* `allowed_methods`: sequence of **allowed to mock** attributes
-* `forbidden_methods`: sequnce of **forbidden to mock** attributes
 * `encode`: encode routine
 * `decode`: decode routine
 
@@ -125,14 +120,14 @@ Fixture with default mode from cli parameter (`bool`).
 def automock(factory: Callable, *,
              memory: Dict,
              locked: bool = True,
-             allowed_methods: Optional[Sequence[str]] = None,
-             forbidden_methods: Optional[Sequence[str]] = None)
+             encode: Callable[[Any], bytes] = pickle.dumps,
+             decode: Callable[[bytes], Any] = pickle.loads):
 ```
 * `factory`: object/function to wrap
 * `memory`: dicrionary to get/put mocks
 * `locked`: mode selector
-* `allowed_methods`: sequence of **allowed to mock** attributes
-* `forbidden_methods`: sequnce of **forbidden to mock** attributes
+* `encode`: encode routine
+* `decode`: decode routine
 
 # Development
 ## Run tests

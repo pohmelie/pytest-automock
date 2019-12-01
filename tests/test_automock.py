@@ -79,29 +79,6 @@ def test_out_of_sequence():
         t.some_sync(2)
 
 
-def test_allowed_forbidden():
-    with pytest.raises(ValueError):
-        automock(None, memory=None, allowed_methods=["a", "b"], forbidden_methods=["b", "c"])
-
-    m = {}
-    t = automock(T, memory=m, locked=False)(1)
-    assert len(m) == 1
-    t = automock(T, memory=m, locked=True, allowed_methods=[])(1)
-    assert t.some_sync(1) == 2
-    assert t.some_sync2(1) == 2
-
-    m = {}
-    t = automock(T, memory=m, locked=False, allowed_methods={"some_sync"})(1)
-    assert t.some_sync(1) == 2
-    assert t.some_sync2(1) == 2
-    assert len(m) == 2
-
-    t = automock(T, memory=m, locked=True, forbidden_methods={"some_sync2"})(1)
-    assert t.some_sync(1) == 2
-    assert t.some_sync2(2) == 3
-    assert len(m) == 2
-
-
 @pytest.mark.asyncio
 async def test_function_mock():
     m = {}

@@ -1,8 +1,9 @@
 import itertools
 import inspect
+import pickle
 from enum import Enum
 from functools import partial
-from typing import Any, Dict, Callable, Optional, Sequence
+from typing import Any, Dict, Callable
 
 
 __all__ = (
@@ -13,17 +14,13 @@ __all__ = (
 def automock(factory: Callable, *,
              memory: Dict,
              locked: bool = True,
-             allowed_methods: Optional[Sequence[str]] = None,
-             forbidden_methods: Optional[Sequence[str]] = None):
-    if allowed_methods and forbidden_methods:
-        intersection = set(allowed_methods) & set(forbidden_methods)
-        if intersection:
-            raise ValueError(f"{intersection} methods presents in both lists")
+             encode: Callable[[Any], bytes] = pickle.dumps,
+             decode: Callable[[bytes], Any] = pickle.loads):
     counter = itertools.count()
     if inspect.isfunction(factory):
         factory = partial(_FunctionAsClass, factory)
-        return _Proxy(memory, counter, factory, locked, allowed_methods, forbidden_methods)
-    return partial(_Proxy, memory, counter, factory, locked, allowed_methods, forbidden_methods)
+        return _Proxy(memory, counter, factory, locked, encode, decode)
+    return partial(_Proxy, memory, counter, factory, locked, encode, decode)
 
 
 class _FunctionAsClass:
@@ -50,18 +47,16 @@ class _Result:
 
 class _Proxy:
 
-    def __init__(self, memory, counter, factory, locked, allowed, forbidden, *args, **kwargs):
+    def __init__(self, memory, counter, factory, locked, encode, decode, *args, **kwargs):
         self.__memory = memory
         self.__counter = counter
         self.__instance = None
         self.__locked = locked
-        self.__allowed = allowed
-        self.__forbidden = forbidden
+        self.__encode = encode
+        self.__decode = decode
         key = self.__build_key("__init__", args, kwargs)
-        force_create = allowed is not None or forbidden is not None
-        if key not in self.__memory or force_create:
-            if not force_create:
-                self.__check_if_can_call("__init__")
+        if key not in self.__memory:
+            self.__check_if_can_call("__init__")
             self.__instance = factory(*args, **kwargs)
             self.__memory[key] = True
 
@@ -72,18 +67,11 @@ class _Proxy:
         if self.__locked:
             raise RuntimeError(f"Mock is locked, but {method!r} wanted")
 
-    def __should_mock(self, method):
-        if self.__allowed is not None and method not in self.__allowed:
-            return False
-        if self.__forbidden is not None and method in self.__forbidden:
-            return False
-        return True
-
     def __resolve_method(self, name):
         def wrapper(*args, **kwargs):
             key = self.__build_key(name, args, kwargs)
             if key in self.__memory:
-                result = self.__memory[key]
+                result = self.__decode(self.__memory[key])
                 if result.type == _ResultType.async_:
                     return self.__resolve_async(key, name, args, kwargs)
                 elif result.type == _ResultType.sync:
@@ -114,7 +102,7 @@ class _Proxy:
                 result = _Result(e, _ResultType.async_, is_exception=True)
             else:
                 result = _Result(value, _ResultType.async_)
-            self.__memory[key] = result
+            self.__memory[key] = self.__encode(result)
         return self.__resolve_result(key)
 
     def __resolve_sync(self, key, name, args, kwargs):
@@ -128,18 +116,16 @@ class _Proxy:
                 result = _Result(e, _ResultType.sync, is_exception=True)
             else:
                 result = _Result(value, _ResultType.sync)
-            self.__memory[key] = result
+            self.__memory[key] = self.__encode(result)
         return self.__resolve_result(key)
 
     def __resolve_result(self, key):
-        result = self.__memory[key]
+        result = self.__decode(self.__memory[key])
         if result.is_exception:
             raise result.value
         return result.value
 
     def __getattr__(self, name):
-        if not self.__should_mock(name):
-            return getattr(self.__instance, name)
         return self.__resolve_method(name)
 
     def __call__(self, *args, **kwargs):
