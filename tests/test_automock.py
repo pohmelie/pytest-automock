@@ -64,6 +64,13 @@ async def test_simple():
     assert len(m) == 6
 
 
+def test_multiple_instance():
+    m1, m2 = {}, {}
+    t = automock(T, memory=m1)
+    a = t()
+    b = t()
+
+
 def test_out_of_sequence():
     m = {}
     t = automock(T, memory=m, locked=False)(1)
