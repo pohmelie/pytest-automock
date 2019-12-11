@@ -1,5 +1,12 @@
+# 0.6.0 (2019-12-12)
+* add support for mocking builtins
+* add `--automock-remove` cli argument
+* add support for targeting with module path
+* fix coverage report on travis
+
 # 0.5.0 (2019-12-11)
 * fix/add multiple instances support
+
 Thanks to [Roman Tolkachyov](https://github.com/romantolkachyov)
 
 # 0.4.0 (2019-12-02)

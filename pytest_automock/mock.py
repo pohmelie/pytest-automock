@@ -17,7 +17,7 @@ def automock(factory: Callable, *,
              encode: Callable[[Any], bytes] = pickle.dumps,
              decode: Callable[[bytes], Any] = pickle.loads):
     counter = itertools.count()
-    if inspect.isfunction(factory):
+    if inspect.isfunction(factory) or inspect.isbuiltin(factory):
         factory = partial(_FunctionAsClass, factory)
         return _Proxy(memory, counter, factory, locked, encode, decode)
     return partial(_Proxy, memory, counter, factory, locked, encode, decode)

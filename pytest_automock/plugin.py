@@ -1,5 +1,6 @@
 import contextlib
 import pickle
+import importlib
 from pathlib import Path
 from typing import Union, Optional, Callable, Any
 
@@ -11,6 +12,8 @@ from .mock import automock as automock_implementation
 def pytest_addoption(parser):
     parser.addoption("--automock-unlocked", action="store_true", default=False,
                      help="Unlock automock plugin storage and actual calls")
+    parser.addoption("--automock-remove", action="store_true", default=False,
+                     help="Remove appropriate existing mock before each test")
 
 
 @pytest.fixture(scope="session")
@@ -18,24 +21,41 @@ def automock_unlocked(request):
     return request.config.getoption("--automock-unlocked")
 
 
+@pytest.fixture(scope="session")
+def automock_remove(request):
+    return request.config.getoption("--automock-remove")
+
+
 @pytest.fixture
-def automock(request, monkeypatch, automock_unlocked):
+def automock(request, monkeypatch, automock_unlocked, automock_remove):
     @contextlib.contextmanager
-    def automocker(*pairs,
+    def automocker(*targets,
                    storage: Union[str, Path] = "tests/mocks",
                    override_name: Optional[str] = None,
                    unlocked: Optional[bool] = None,
+                   remove: Optional[bool] = None,
                    encode: Callable[[Any], bytes] = pickle.dumps,
                    decode: Callable[[bytes], Any] = pickle.loads):
         if unlocked is None:
             unlocked = automock_unlocked
+        if remove is None:
+            remove = automock_remove
         with monkeypatch.context() as m:
             memories = {}
-            for obj, name in pairs:
+            for target in targets:
+                if isinstance(target, tuple):
+                    obj, name = target
+                elif isinstance(target, str):
+                    module_name, name = target.rsplit(".", maxsplit=1)
+                    obj = importlib.import_module(module_name)
+                else:
+                    raise TypeError(f"Expect tuple of (obj, name) or string-path, got {target!r}")
                 filename = override_name or name
                 p = Path(storage).joinpath(request.node.name, obj.__name__, filename)
                 if p in memories:
                     raise RuntimeError(f"Mock with path {p} already exist")
+                if remove and p.exists():
+                    p.unlink()
                 memory = {}
                 if p.exists():
                     memory = decode(p.read_bytes())
