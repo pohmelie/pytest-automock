@@ -65,10 +65,10 @@ async def test_simple():
 
 
 def test_multiple_instance():
-    m1, m2 = {}, {}
+    m1 = {}
     t = automock(T, memory=m1)
-    a = t()
-    b = t()
+    t()
+    t()
 
 
 def test_out_of_sequence():
