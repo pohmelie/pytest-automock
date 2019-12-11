@@ -49,7 +49,8 @@ class _Proxy:
 
     def __init__(self, memory, counter, factory, locked, encode, decode, *args, **kwargs):
         self.__memory = memory
-        self.__counter = counter
+        self.__instance_index = next(counter)
+        self.__counter = itertools.count()
         self.__instance = None
         self.__locked = locked
         self.__encode = encode
@@ -61,7 +62,7 @@ class _Proxy:
             self.__memory[key] = True
 
     def __build_key(self, method, args, kwargs):
-        return next(self.__counter), method, repr((args, kwargs))
+        return self.__instance_index, next(self.__counter), method, repr((args, kwargs))
 
     def __check_if_can_call(self, method):
         if self.__locked:
