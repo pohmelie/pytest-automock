@@ -1,3 +1,7 @@
+# 0.5.0 (2019-12-11)
+* fix/add multiple instances support
+Thanks to [Roman Tolkachyov](https://github.com/romantolkachyov)
+
 # 0.4.0 (2019-12-02)
 * remove allowed/forbidden lists since complexity
 * add result serialization to prevent mutations
