@@ -43,6 +43,9 @@ class T:
     async def some_exception_async(self):
         raise TException
 
+    def side_sync(self):
+        return time.perf_counter()
+
 
 @pytest.mark.asyncio
 async def test_simple():
@@ -62,6 +65,26 @@ async def test_simple():
     assert t.some_sync(1) == 2
     assert t.some_sync(4) == 5
     assert len(m) == 6
+
+
+def test_multiple_instance():
+    m = {}
+    t = automock(T, memory=m, locked=False)
+    t11 = t(1)
+    t12 = t(2)
+    r11 = t11.side_sync()
+    r12 = t12.side_sync()
+    assert r11 != r12
+
+    t = automock(T, memory=m, locked=True)
+    t21 = t(1)
+    t22 = t(2)
+    r22 = t22.side_sync()
+    r21 = t21.side_sync()
+    assert r21 != r22
+
+    assert r11 == r21
+    assert r12 == r22
 
 
 def test_out_of_sequence():
