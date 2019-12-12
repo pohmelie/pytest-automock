@@ -80,7 +80,7 @@ class _Proxy:
                 else:
                     raise ValueError(f"Unknown result type {result}")
             if self.__instance is None:
-                raise RuntimeError(f"Missed key {key!r} in mock sequence {self.__memory}")
+                raise RuntimeError(f"Missed key {key!r} in mock sequence {self.__memory.keys()}")
             self.__check_if_can_call(name)
             attr = getattr(self.__instance, name)
             if inspect.iscoroutinefunction(attr):

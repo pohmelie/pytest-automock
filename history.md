@@ -1,3 +1,6 @@
+# 0.6.1 (2019-12-12)
+* prettify error message
+
 # 0.6.0 (2019-12-12)
 * add support for mocking builtins
 * add `--automock-remove` cli argument
