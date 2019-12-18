@@ -1,3 +1,7 @@
+# 0.6.2 (2019-12-18)
+* catch encoding exceptions
+* add pypi autodeploy
+
 # 0.6.1 (2019-12-12)
 * prettify error message
 
