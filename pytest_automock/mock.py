@@ -44,6 +44,10 @@ class _Result:
         self.type = type
         self.is_exception = is_exception
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(value={self.value!r}, type={self.type!r}, " \
+               f"is_exception={self.is_exception!r})"
+
 
 class _Proxy:
 
@@ -103,7 +107,10 @@ class _Proxy:
                 result = _Result(e, _ResultType.async_, is_exception=True)
             else:
                 result = _Result(value, _ResultType.async_)
-            self.__memory[key] = self.__encode(result)
+            try:
+                self.__memory[key] = self.__encode(result)
+            except Exception as e:
+                raise ValueError(f"Can't encode {result!r}") from e
         return self.__resolve_result(key)
 
     def __resolve_sync(self, key, name, args, kwargs):
