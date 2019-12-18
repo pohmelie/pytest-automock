@@ -22,16 +22,18 @@ matrix:
       stage: test
       script:
         - >
-          docker run --rm -v $(pwd):/source -w /source python:3.6 bash -c "
+          docker run --rm -v $(pwd):/source -w /source python:3.6-slim bash -c "
           pip install -e ./[dev];
-          pytest;"
+          pytest;
+          rm -rf build/ *.egg-info"
     - name: cpython 3.7
       stage: test
       script:
         - >
-          docker run --rm -v $(pwd):/source -w /source python:3.7 bash -c "
+          docker run --rm -v $(pwd):/source -w /source python:3.7-slim bash -c "
           pip install -e ./[dev];
-          pytest;"
+          pytest;
+          rm -rf build/ *.egg-info"
     - name: cpython 3.8
       stage: test
       install:
@@ -42,9 +44,10 @@ matrix:
                      -e COV_CORE_SOURCE=pytest_automock \
                      -e COV_CORE_CONFIG=.coveragerc \
                      -e COV_CORE_DATAFILE=.coverage.eager \
-                     python:3.8 bash -c "
+                     python:3.8-slim bash -c "
           pip install -e ./[dev];
-          pytest;"
+          pytest;
+          rm -rf build/ *.egg-info"
       after_success:
         - codecov
 deploy:
