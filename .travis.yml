@@ -6,6 +6,7 @@ services:
 branches:
   only:
     - master
+    - /v\d+\.\d+[a-z]/
 stages:
   - lint
   - test
@@ -56,4 +57,3 @@ deploy:
   skip_existing: true
   on:
     tags: true
-    branch: master
