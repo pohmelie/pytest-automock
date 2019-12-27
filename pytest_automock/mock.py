@@ -1,6 +1,7 @@
 import itertools
 import inspect
 import pickle
+import reprlib
 from enum import Enum
 from functools import partial
 from typing import Any, Dict, Callable
@@ -84,7 +85,8 @@ class _Proxy:
                 else:
                     raise ValueError(f"Unknown result type {result}")
             if self.__instance is None:
-                raise RuntimeError(f"Missed key {key!r} in mock sequence {self.__memory.keys()}")
+                keys_representation = ", ".join(reprlib.repr(k) for k in self.__memory.keys())
+                raise RuntimeError(f"Missed key {key!r} in mock sequence {keys_representation}")
             self.__check_if_can_call(name)
             attr = getattr(self.__instance, name)
             if inspect.iscoroutinefunction(attr):
