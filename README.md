@@ -113,7 +113,8 @@ def automock(*targets,
              unlocked: Optional[bool] = None,
              remove: Optional[bool] = None,
              encode: Callable[[Any], bytes] = pickle.dumps,
-             decode: Callable[[bytes], Any] = pickle.loads)
+             decode: Callable[[bytes], Any] = pickle.loads,
+             debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None)
 ```
 * `*targets`: pair/tuple of object/module and attribute name (`str`) or module path to object/function with dot delimiter (`(mymod, "Network")` or `"mymod.Network"`)
 * `storage`: root path for storing mocks
@@ -122,6 +123,12 @@ def automock(*targets,
 * `remove`: remove test mock before test run (if omited, selected by `--automock-remove`)
 * `encode`: encode routine
 * `decode`: decode routine
+* `debug`: function for debugging failed cases, when you do not understand why automock bakes. Arguments are:
+    * `memory` for current failed test
+    * `call_wanted` which is a call you want to do right now
+    * `call_saved` which is a call you saved last time you generate mocks for this test
+
+`call_wanted` and `call_saved` are rich `Call` class objects, inspect it in `mock.py` file. Also, you can use a `"pdb"` string instead of your own function as a `debug` argument value, to use internal function with `pdb.set_trace()` instruction.
 
 ## `automock_unlocked` (fixture)
 Fixture with default mode from cli parameter (`bool`).
@@ -136,13 +143,15 @@ def automock(factory: Callable, *,
              memory: Dict,
              locked: bool = True,
              encode: Callable[[Any], bytes] = pickle.dumps,
-             decode: Callable[[bytes], Any] = pickle.loads):
+             decode: Callable[[bytes], Any] = pickle.loads,
+             debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None)
 ```
 * `factory`: object/function to wrap
 * `memory`: dicrionary to get/put mocks
 * `locked`: mode selector
 * `encode`: encode routine
 * `decode`: decode routine
+* `debug`: same as for ficture
 
 # Caveats
 ## Order
@@ -186,7 +195,7 @@ t2.func(2, 3)
 will fail
 
 ## Function arguments
-Internally, key for mocks consists of instance number, call number, method name, positional arguments representation and keyword arguments representation. This leads to some «unobvious» behavior:
+Internally, key for mocks consists of instance number and call number. This leads to some «unobvious» behavior:
 ``` python
 import time
 from pytest_automock import automock
@@ -201,16 +210,7 @@ mocked(time.time())
 mocked = automock(nop, memory=m, locked=True)
 mocked(time.time())
 ```
-Will fail because of argument in mock creation time differs from argument in mock use time.
-
-Same thing will break mocks if representation is not determenistic:
-``` python
-...
-mocked(object())
-...
-mocked(object())
-```
-Since basic objects are represented as `<object object at 0x7ffa21c1cb90>`.
+Will fail because of argument in mock creation time differs from argument in mock use time. Same thing will break mocks if pickled representation is not determenistic.
 
 # Development
 ## Run tests

@@ -1,11 +1,12 @@
 import contextlib
-import pickle
 import importlib
+import pickle
 from pathlib import Path
-from typing import Union, Optional, Callable, Any
+from typing import Any, Callable, Dict, Optional, Union
 
 import pytest
 
+from .mock import Call
 from .mock import automock as automock_implementation
 
 
@@ -35,7 +36,8 @@ def automock(request, monkeypatch, automock_unlocked, automock_remove):
                    unlocked: Optional[bool] = None,
                    remove: Optional[bool] = None,
                    encode: Callable[[Any], bytes] = pickle.dumps,
-                   decode: Callable[[bytes], Any] = pickle.loads):
+                   decode: Callable[[bytes], Any] = pickle.loads,
+                   debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None):
         if unlocked is None:
             unlocked = automock_unlocked
         if remove is None:
@@ -64,6 +66,9 @@ def automock(request, monkeypatch, automock_unlocked, automock_remove):
                     original,
                     memory=memory,
                     locked=not unlocked,
+                    encode=encode,
+                    decode=decode,
+                    debug=debug,
                 )
                 m.setattr(obj, name, mocked)
                 memories[p] = memory

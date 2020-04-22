@@ -1,3 +1,10 @@
+# 0.7.0 (2020-04-22)
+* reduce memory keys to instance index and call index pairs
+* introduce rich `Call` object
+* use pickle to pack `args` and `kwargs`, so comparision is more strict than with `repr`
+* add debug callback argument and `pdb` fallback
+* more informative error messages
+
 # 0.6.3 (2019-12-27)
 * reduce exception content with `reprlib`
 

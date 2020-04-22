@@ -1,27 +1,76 @@
-import itertools
 import inspect
+import itertools
 import pickle
-import reprlib
 from enum import Enum
 from functools import partial
-from typing import Any, Dict, Callable
-
+from typing import Any, Callable, Dict, Optional
 
 __all__ = (
     "automock",
+    "Call",
 )
+
+
+class _CallType(Enum):
+    sync = "sync"
+    async_ = "async"
+
+
+class Call:
+    def __init__(self,
+                 instance_index: int,
+                 call_index: int,
+                 method: str,
+                 request: bytes,
+                 type: Optional[_CallType] = None,
+                 response: Optional[bytes] = None,
+                 is_exception: bool = False,
+                 encode: Callable[[Any], bytes] = pickle.dumps,
+                 decode: Callable[[bytes], Any] = pickle.loads):
+        self.instance_index = instance_index
+        self.call_index = call_index
+        self.method = method
+        self.request = request
+        self.type = type
+        self.response = response
+        self.is_exception = is_exception
+        self.encode = encode
+        self.decode = decode
+
+    @property
+    def key(self):
+        return self.instance_index, self.call_index
+
+    @property
+    def args(self):
+        args, _ = self.decode(self.request)
+        return args
+
+    @property
+    def kwargs(self):
+        _, kwargs = self.decode(self.request)
+        return kwargs
+
+    @property
+    def result(self):
+        return self.decode(self.response)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(instance_index={self.instance_index}, call_index={self.call_index}, " \
+               f"method={self.method})"
 
 
 def automock(factory: Callable, *,
              memory: Dict,
              locked: bool = True,
              encode: Callable[[Any], bytes] = pickle.dumps,
-             decode: Callable[[bytes], Any] = pickle.loads):
+             decode: Callable[[bytes], Any] = pickle.loads,
+             debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None):
     counter = itertools.count()
     if inspect.isfunction(factory) or inspect.isbuiltin(factory):
         factory = partial(_FunctionAsClass, factory)
-        return _Proxy(memory, counter, factory, locked, encode, decode)
-    return partial(_Proxy, memory, counter, factory, locked, encode, decode)
+        return _Proxy(memory, counter, factory, locked, encode, decode, debug)
+    return partial(_Proxy, memory, counter, factory, locked, encode, decode, debug)
 
 
 class _FunctionAsClass:
@@ -33,26 +82,9 @@ class _FunctionAsClass:
         return self._f(*args, **kwargs)
 
 
-class _ResultType(Enum):
-    sync = "sync"
-    async_ = "async"
-
-
-class _Result:
-
-    def __init__(self, value: Any, type: _ResultType, is_exception: bool = False):
-        self.value = value
-        self.type = type
-        self.is_exception = is_exception
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(value={self.value!r}, type={self.type!r}, " \
-               f"is_exception={self.is_exception!r})"
-
-
 class _Proxy:
 
-    def __init__(self, memory, counter, factory, locked, encode, decode, *args, **kwargs):
+    def __init__(self, memory, counter, factory, locked, encode, decode, debug, *args, **kwargs):
         self.__memory = memory
         self.__instance_index = next(counter)
         self.__counter = itertools.count()
@@ -60,80 +92,111 @@ class _Proxy:
         self.__locked = locked
         self.__encode = encode
         self.__decode = decode
-        key = self.__build_key("__init__", args, kwargs)
-        if key not in self.__memory:
-            self.__check_if_can_call("__init__")
+        if debug == "pdb":
+            debug = self.__pdb_debug
+        self.__debug = debug
+        call = self.__build_call("__init__", args, kwargs)
+        if call.key in self.__memory:
+            self.__compare_request_with_saved(call)
+        else:
+            self.__check_if_can_call(call)
             self.__instance = factory(*args, **kwargs)
-            self.__memory[key] = True
+            call.type = _CallType.sync
+            self.__memory[call.key] = call
 
-    def __build_key(self, method, args, kwargs):
-        return self.__instance_index, next(self.__counter), method, repr((args, kwargs))
+    def __build_call(self, method, args, kwargs):
+        request = self.__encode((args, kwargs))
+        return Call(self.__instance_index, next(self.__counter), method, request,
+                    encode=self.__encode, decode=self.__decode)
 
-    def __check_if_can_call(self, method):
+    @staticmethod
+    def __pdb_debug(memory: Dict, call_wanted: Call, call_saved: Optional[Call] = None):
+        import pdb
+        pdb.set_trace()
+
+    def __invoke_debug(self, call_wanted: Call, call_saved: Optional[Call] = None):
+        if self.__debug is not None:
+            self.__debug(self.__memory, call_wanted, call_saved)
+
+    def __compare_request_with_saved(self, call_wanted: Call) -> Call:
+        call_saved = self.__memory[call_wanted.key]
+        if (call_wanted.method, call_wanted.request) == (call_saved.method, call_saved.request):
+            return call_saved
+        self.__invoke_debug(call_wanted, call_saved)
+        raise RuntimeError(f"Requested broken call:\n"
+                           f"Wanted: {call_wanted.method}, {call_wanted.args}, {call_wanted.kwargs}\n"
+                           f"Saved:  {call_saved.method}, {call_saved.args}, {call_saved.kwargs}")
+
+    def __check_if_can_call(self, call: Call):
         if self.__locked:
-            raise RuntimeError(f"Mock is locked, but {method!r} wanted")
+            self.__invoke_debug(call)
+            raise RuntimeError(f"Mock is locked, but {call!r} wanted, there is no such "
+                               f"instance and call indexes pair in memory")
 
     def __resolve_method(self, name):
         def wrapper(*args, **kwargs):
-            key = self.__build_key(name, args, kwargs)
-            if key in self.__memory:
-                result = self.__decode(self.__memory[key])
-                if result.type == _ResultType.async_:
-                    return self.__resolve_async(key, name, args, kwargs)
-                elif result.type == _ResultType.sync:
-                    return self.__resolve_sync(key, name, args, kwargs)
+            call_wanted = self.__build_call(name, args, kwargs)
+            if call_wanted.key in self.__memory:
+                call_saved = self.__compare_request_with_saved(call_wanted)
+                if call_saved.type == _CallType.async_:
+                    return self.__resolve_async(call_saved)
+                elif call_saved.type == _CallType.sync:
+                    return self.__resolve_sync(call_saved)
                 else:
-                    raise ValueError(f"Unknown result type {result}")
+                    self.__invoke_debug(call_wanted, call_saved)
+                    raise ValueError(f"Unknown call type {call_saved}")
             if self.__instance is None:
-                keys_representation = ", ".join(reprlib.repr(k) for k in self.__memory.keys())
-                raise RuntimeError(f"Missed key {key!r} in mock sequence {keys_representation}")
-            self.__check_if_can_call(name)
-            attr = getattr(self.__instance, name)
+                self.__invoke_debug(call_wanted)
+                calls = sorted(self.__memory.values(), key=lambda c: c.key)
+                raise RuntimeError(f"Missed call {call_wanted} in mock sequence {calls}")
+            self.__check_if_can_call(call_wanted)
+            attr = getattr(self.__instance, call_wanted.method)
             if inspect.iscoroutinefunction(attr):
-                return self.__resolve_async(key, name, args, kwargs)
+                return self.__resolve_async(call_wanted)
             elif inspect.ismethod(attr):
-                return self.__resolve_sync(key, name, args, kwargs)
+                return self.__resolve_sync(call_wanted)
             else:
-                raise ValueError(f"Unsupported attribute {name} {attr}")
+                self.__invoke_debug(call_wanted)
+                raise ValueError(f"Unsupported attribute {call_wanted.method} {attr}")
         return wrapper
 
-    async def __resolve_async(self, key, name, args, kwargs, *, coroutine=None):
-        if key not in self.__memory:
-            f = getattr(self.__instance, name)
+    async def __resolve_async(self, call: Call, *, coroutine=None):
+        call.type = _CallType.async_
+        if call.key not in self.__memory:
+            f = getattr(self.__instance, call.method)
             try:
                 if coroutine is None:
-                    value = await f(*args, **kwargs)
+                    value = await f(*call.args, **call.kwargs)
                 else:
                     value = await coroutine
             except Exception as e:
-                result = _Result(e, _ResultType.async_, is_exception=True)
+                call.response = self.__encode(e)
+                call.is_exception = True
             else:
-                result = _Result(value, _ResultType.async_)
-            try:
-                self.__memory[key] = self.__encode(result)
-            except Exception as e:
-                raise ValueError(f"Can't encode {result!r}") from e
-        return self.__resolve_result(key)
+                call.response = self.__encode(value)
+            self.__memory[call.key] = call
+        return self.__resolve_result(call)
 
-    def __resolve_sync(self, key, name, args, kwargs):
-        if key not in self.__memory:
-            f = getattr(self.__instance, name)
+    def __resolve_sync(self, call: Call):
+        call.type = _CallType.sync
+        if call.key not in self.__memory:
+            f = getattr(self.__instance, call.method)
             try:
-                value = f(*args, **kwargs)
+                value = f(*call.args, **call.kwargs)
                 if inspect.iscoroutine(value):
-                    return self.__resolve_async(key, name, args, kwargs, coroutine=value)
+                    return self.__resolve_async(call, coroutine=value)
             except Exception as e:
-                result = _Result(e, _ResultType.sync, is_exception=True)
+                call.response = self.__encode(e)
+                call.is_exception = True
             else:
-                result = _Result(value, _ResultType.sync)
-            self.__memory[key] = self.__encode(result)
-        return self.__resolve_result(key)
+                call.response = self.__encode(value)
+            self.__memory[call.key] = call
+        return self.__resolve_result(call)
 
-    def __resolve_result(self, key):
-        result = self.__decode(self.__memory[key])
-        if result.is_exception:
-            raise result.value
-        return result.value
+    def __resolve_result(self, call: Call):
+        if call.is_exception:
+            raise call.result
+        return call.result
 
     def __getattr__(self, name):
         return self.__resolve_method(name)

@@ -1,7 +1,6 @@
 import time
 
 import pytest
-
 from pytest_automock import automock
 
 
@@ -45,6 +44,10 @@ class T:
 
     def side_sync(self):
         return time.perf_counter()
+
+    @property
+    def some_property(self):
+        return
 
 
 @pytest.mark.asyncio
@@ -166,3 +169,54 @@ def test_lock():
     m = {}
     with pytest.raises(RuntimeError):
         automock(T, memory=m, locked=True)(1)
+
+
+def test_missed_key():
+    m = {}
+    t = automock(T, memory=m, locked=False)(1)
+    t.some_sync(1)
+
+    t = automock(T, memory=m, locked=True)(1)
+    t.some_sync(1)
+    with pytest.raises(RuntimeError):
+        t.some_sync(1)
+
+
+def test_broken_memory():
+    m = {}
+    t = automock(T, memory=m, locked=False)(1)
+    t.some_sync(1)
+
+    m[0, 1].type = "foo"
+
+    t = automock(T, memory=m, locked=True)(1)
+    with pytest.raises(ValueError):
+        t.some_sync(1)
+
+
+def test_bad_attribute():
+    m = {}
+    t = automock(T, memory=m, locked=False)(1)
+    with pytest.raises(ValueError):
+        t.some_property()
+
+
+def test_debug():
+    called = False
+
+    def debug(m, c1, c2):
+        nonlocal called
+        called = True
+        assert isinstance(m, dict)
+        assert len(m) == 2
+        assert c1.args == (2,)
+        assert c2.args == (1,)
+
+    m = {}
+    t = automock(T, memory=m, locked=False)(1)
+    t.some_sync(1)
+
+    t = automock(T, memory=m, locked=True, debug=debug)(1)
+    with pytest.raises(RuntimeError):
+        t.some_sync(2)
+    assert called
