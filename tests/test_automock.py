@@ -1,7 +1,7 @@
 import time
 
 import pytest
-from pytest_automock import automock
+from pytest_automock import AutoMockException, automock
 
 
 class TException(Exception):
@@ -97,11 +97,11 @@ def test_out_of_sequence():
     assert t.some_sync(2) == 3
     assert len(m) == 3
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AutoMockException):
         t = automock(None, memory=m, locked=True)(2)
 
     t = automock(None, memory=m, locked=True)(1)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AutoMockException):
         t.some_sync(2)
 
 
@@ -167,7 +167,7 @@ async def test_exception():
 
 def test_lock():
     m = {}
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AutoMockException):
         automock(T, memory=m, locked=True)(1)
 
 
@@ -178,7 +178,7 @@ def test_missed_key():
 
     t = automock(T, memory=m, locked=True)(1)
     t.some_sync(1)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AutoMockException):
         t.some_sync(1)
 
 
@@ -190,14 +190,14 @@ def test_broken_memory():
     m[0, 1].type = "foo"
 
     t = automock(T, memory=m, locked=True)(1)
-    with pytest.raises(ValueError):
+    with pytest.raises(AutoMockException):
         t.some_sync(1)
 
 
 def test_bad_attribute():
     m = {}
     t = automock(T, memory=m, locked=False)(1)
-    with pytest.raises(ValueError):
+    with pytest.raises(AutoMockException):
         t.some_property()
 
 
@@ -217,6 +217,6 @@ def test_debug():
     t.some_sync(1)
 
     t = automock(T, memory=m, locked=True, debug=debug)(1)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AutoMockException):
         t.some_sync(2)
     assert called

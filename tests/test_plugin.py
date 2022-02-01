@@ -2,6 +2,8 @@ import time
 
 import pytest
 
+from pytest_automock import AutoMockException
+
 
 class Namespace:
     class T:
@@ -60,7 +62,7 @@ def test_target_variants(tmp_path_automock):
 def test_defaults(tmp_path_automock, automock_unlocked, automock_remove):
     assert automock_unlocked is False
     assert automock_remove is False
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AutoMockException):
         with tmp_path_automock("time.perf_counter"):
             time.perf_counter()
     with tmp_path_automock("time.perf_counter", unlocked=True):

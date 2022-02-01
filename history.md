@@ -1,3 +1,6 @@
+# 0.8.0 (2022-02-02)
+* use common exception class `AutoMockException`
+
 # 0.7.0 (2020-04-22)
 * reduce memory keys to instance index and call index pairs
 * introduce rich `Call` object

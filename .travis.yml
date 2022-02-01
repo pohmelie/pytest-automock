@@ -18,7 +18,7 @@ matrix:
           docker run --rm -v $(pwd):/source -w /source python bash -c "
           pip install flake8;
           flake8 pytest_automock tests"
-    - name: cpython 3.6
+    - name: cpython 3.8
       stage: test
       script:
         - >
@@ -26,7 +26,7 @@ matrix:
           pip install -e ./[dev];
           pytest;
           rm -rf build/ *.egg-info"
-    - name: cpython 3.7
+    - name: cpython 3.9
       stage: test
       script:
         - >
@@ -34,7 +34,7 @@ matrix:
           pip install -e ./[dev];
           pytest;
           rm -rf build/ *.egg-info"
-    - name: cpython 3.8
+    - name: cpython 3.10
       stage: test
       install:
         - pip install codecov

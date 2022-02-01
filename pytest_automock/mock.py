@@ -7,8 +7,13 @@ from typing import Any, Callable, Dict, Optional
 
 __all__ = (
     "automock",
+    "AutoMockException",
     "Call",
 )
+
+
+class AutoMockException(Exception):
+    pass
 
 
 class _CallType(Enum):
@@ -123,15 +128,15 @@ class _Proxy:
         if (call_wanted.method, call_wanted.request) == (call_saved.method, call_saved.request):
             return call_saved
         self.__invoke_debug(call_wanted, call_saved)
-        raise RuntimeError(f"Requested broken call:\n"
-                           f"Wanted: {call_wanted.method}, {call_wanted.args}, {call_wanted.kwargs}\n"
-                           f"Saved:  {call_saved.method}, {call_saved.args}, {call_saved.kwargs}")
+        raise AutoMockException(f"Requested broken call:\n"
+                                f"Wanted: {call_wanted.method}, {call_wanted.args}, {call_wanted.kwargs}\n"
+                                f"Saved:  {call_saved.method}, {call_saved.args}, {call_saved.kwargs}")
 
     def __check_if_can_call(self, call: Call):
         if self.__locked:
             self.__invoke_debug(call)
-            raise RuntimeError(f"Mock is locked, but {call!r} wanted, there is no such "
-                               f"instance and call indexes pair in memory")
+            raise AutoMockException(f"Mock is locked, but {call!r} wanted, there is no such "
+                                    f"instance and call indexes pair in memory")
 
     def __resolve_method(self, name):
         def wrapper(*args, **kwargs):
@@ -144,11 +149,11 @@ class _Proxy:
                     return self.__resolve_sync(call_saved)
                 else:
                     self.__invoke_debug(call_wanted, call_saved)
-                    raise ValueError(f"Unknown call type {call_saved}")
+                    raise AutoMockException(f"Unknown call type {call_saved}")
             if self.__instance is None:
                 self.__invoke_debug(call_wanted)
                 calls = sorted(self.__memory.values(), key=lambda c: c.key)
-                raise RuntimeError(f"Missed call {call_wanted} in mock sequence {calls}")
+                raise AutoMockException(f"Missed call {call_wanted} in mock sequence {calls}")
             self.__check_if_can_call(call_wanted)
             attr = getattr(self.__instance, call_wanted.method)
             if inspect.iscoroutinefunction(attr):
@@ -157,7 +162,7 @@ class _Proxy:
                 return self.__resolve_sync(call_wanted)
             else:
                 self.__invoke_debug(call_wanted)
-                raise ValueError(f"Unsupported attribute {call_wanted.method} {attr}")
+                raise AutoMockException(f"Unsupported attribute {call_wanted.method} {attr}")
         return wrapper
 
     async def __resolve_async(self, call: Call, *, coroutine=None):
