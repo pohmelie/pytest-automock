@@ -1,5 +1,5 @@
 # pytest-automock
-[![Travis status for master branch](https://travis-ci.com/pohmelie/pytest-automock.svg?branch=master)](https://travis-ci.com/pohmelie/pytest-automock)
+[![Github actions status for master branch](https://github.com/pohmelie/pytest-automock/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/pohmelie/pytest-automock/actions)
 [![Codecov coverage for master branch](https://codecov.io/gh/pohmelie/pytest-automock/branch/master/graph/badge.svg)](https://codecov.io/gh/pohmelie/pytest-automock)
 [![Pypi version](https://img.shields.io/pypi/v/pytest-automock.svg)](https://pypi.org/project/pytest-automock/)
 [![Pypi downloads count](https://img.shields.io/pypi/dm/pytest-automock)](https://pypi.org/project/pytest-automock/)
@@ -112,8 +112,8 @@ def automock(*targets,
              override_name: Optional[str] = None,
              unlocked: Optional[bool] = None,
              remove: Optional[bool] = None,
-             encode: Callable[[Any], bytes] = pickle.dumps,
-             decode: Callable[[bytes], Any] = pickle.loads,
+             encode: Callable[[Any], bytes] = default_encode,
+             decode: Callable[[bytes], Any] = default_decode,
              debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None)
 ```
 * `*targets`: pair/tuple of object/module and attribute name (`str`) or module path to object/function with dot delimiter (`(mymod, "Network")` or `"mymod.Network"`)
@@ -128,7 +128,7 @@ def automock(*targets,
     * `call_wanted` which is a call you want to do right now
     * `call_saved` which is a call you saved last time you generate mocks for this test
 
-`call_wanted` and `call_saved` are rich `Call` class objects, inspect it in `mock.py` file. Also, you can use a `"pdb"` string instead of your own function as a `debug` argument value, to use internal function with `pdb.set_trace()` instruction.
+`call_wanted` and `call_saved` are rich `Call` class objects, inspect it in `mock.py` file. Also, you can use a `"pdb"` string instead of your own function as a `debug` argument value, to use internal function with `pdb.set_trace()` instruction. Default `encode`/`decode` routine uses `pickle` and `gzip`.
 
 ## `automock_unlocked` (fixture)
 Fixture with default mode from cli parameter (`bool`).
@@ -142,9 +142,9 @@ Fixture with default mode from cli parameter (`bool`).
 def automock(factory: Callable, *,
              memory: Dict,
              locked: bool = True,
-             encode: Callable[[Any], bytes] = pickle.dumps,
-             decode: Callable[[bytes], Any] = pickle.loads,
-             debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None)
+             encode: Callable[[Any], bytes] = default_encode,
+             decode: Callable[[bytes], Any] = default_decode,
+             debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None):
 ```
 * `factory`: object/function to wrap
 * `memory`: dicrionary to get/put mocks
@@ -152,6 +152,8 @@ def automock(factory: Callable, *,
 * `encode`: encode routine
 * `decode`: decode routine
 * `debug`: same as for ficture
+
+Default `encode`/`decode` routine uses `pickle` and `gzip`.
 
 # Caveats
 ## Order

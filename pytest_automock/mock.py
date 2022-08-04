@@ -1,3 +1,4 @@
+import gzip
 import inspect
 import itertools
 import pickle
@@ -8,6 +9,8 @@ from typing import Any, Callable, Dict, Optional
 __all__ = (
     "automock",
     "AutoMockException",
+    "default_decode",
+    "default_encode",
     "Call",
 )
 
@@ -21,6 +24,14 @@ class _CallType(Enum):
     async_ = "async"
 
 
+def default_encode(v: Any) -> bytes:
+    return gzip.compress(pickle.dumps(v))
+
+
+def default_decode(b: bytes) -> Any:
+    return pickle.loads(gzip.decompress(b))
+
+
 class Call:
     def __init__(self,
                  instance_index: int,
@@ -30,8 +41,8 @@ class Call:
                  type: Optional[_CallType] = None,
                  response: Optional[bytes] = None,
                  is_exception: bool = False,
-                 encode: Callable[[Any], bytes] = pickle.dumps,
-                 decode: Callable[[bytes], Any] = pickle.loads):
+                 encode: Callable[[Any], bytes] = default_encode,
+                 decode: Callable[[bytes], Any] = default_decode):
         self.instance_index = instance_index
         self.call_index = call_index
         self.method = method
@@ -68,8 +79,8 @@ class Call:
 def automock(factory: Callable, *,
              memory: Dict,
              locked: bool = True,
-             encode: Callable[[Any], bytes] = pickle.dumps,
-             decode: Callable[[bytes], Any] = pickle.loads,
+             encode: Callable[[Any], bytes] = default_encode,
+             decode: Callable[[bytes], Any] = default_decode,
              debug: Optional[Callable[[Dict, Call, Optional[Call]], None]] = None):
     counter = itertools.count()
     if inspect.isfunction(factory) or inspect.isbuiltin(factory):
