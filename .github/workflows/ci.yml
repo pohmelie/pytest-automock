@@ -20,6 +20,10 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.6', '3.7', '3.8', '3.9', '3.10']
+    env:
+      COV_CORE_SOURCE: pytest_automock
+      COV_CORE_CONFIG: .coveragerc
+      COV_CORE_DATAFILE: .coverage.eager
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
