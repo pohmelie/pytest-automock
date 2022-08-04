@@ -1,3 +1,6 @@
+# 0.9.0 (2022-08-04)
+* use gzip to compress pickle artifacts
+
 # 0.8.0 (2022-02-02)
 * use common exception class `AutoMockException`
 
