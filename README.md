@@ -14,7 +14,7 @@
 * Locked mode to be sure mocked objects stay untouched
 * Customizable serialization
 
-# Limitaions
+# Limitations
 * No support for dunder methods (can be partly solved in future)
 * No support for sync/async generators/contexts
 * Races can break tests, since order counts
