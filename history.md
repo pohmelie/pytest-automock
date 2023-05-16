@@ -1,3 +1,6 @@
+# 0.9.1 (2023-05-17)
+* add `mtime=0` to `gzip.compress` call for reproducible builds
+
 # 0.9.0 (2022-08-04)
 * use gzip to compress pickle artifacts
 
