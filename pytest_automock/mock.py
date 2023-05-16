@@ -25,7 +25,7 @@ class _CallType(Enum):
 
 
 def default_encode(v: Any) -> bytes:
-    return gzip.compress(pickle.dumps(v))
+    return gzip.compress(pickle.dumps(v), mtime=0)
 
 
 def default_decode(b: bytes) -> Any:
